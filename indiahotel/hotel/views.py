@@ -1,7 +1,8 @@
 from django.shortcuts import render
 from rest_framework.views import APIView,Response
-from .serializers import DishSerializer,DishMserial,Userserial
-from .models import Dishes
+from .serializers import DishSerializer,DishMserial,Userserial,Revserial
+from .models import Dishes,DishRev
+from rest_framework.decorators import action
 from rest_framework import status
 # Create your views here.
 # normal sserializer
@@ -105,7 +106,7 @@ class UserserView(APIView):
 # view using viewset
 
 from rest_framework.viewsets import ViewSet,ModelViewSet
-
+from rest_framework import permissions,authentication
 class DishViewset(ViewSet):
     def create(self,request,*args,**kwargs):
         dish=DishMserial(data=request.data)
@@ -157,11 +158,30 @@ class DishModViewset(ModelViewSet):
     serializer_class=DishMserial
     queryset=Dishes.objects.all()
     model=Dishes
+    # authentication_classes=[authentication.TokenAuthentication]
+    permission_classes=[permissions.IsAuthenticated]
+
+    @action(detail=True,methods=['get']) 
+    def get_review(self,request,*args,**kwargs):
+        did=kwargs.get("pk")
+        dish=Dishes.objects.get(id=did)
+        qs=DishRev.objects.filter(dish=dish)
+        ser=Revserial(qs,many=True)
+        return Response(data=ser.data)  
+
+    @action(detail=True,methods=["post"])   
+    def add_review(self,request,*args,**kwargs):
+        did=kwargs.get("pk")
+        dish=Dishes.objects.get(id=did)
+        user=request.user
+        ser=Revserial(data=request.data,context={"user":user,"dish":dish})
+        if ser.is_valid():
+            ser.save()
+            return Response(data=ser.data)
+        else:
+            return Response({"msg":"failed"},status=status.HTTP_404_NOT_FOUND)
 
 
-        
-        
-            
 
 
 
